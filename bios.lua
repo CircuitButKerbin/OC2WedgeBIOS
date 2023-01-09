@@ -1,105 +1,253 @@
---improved bios for Opencomputers
---Built apon the Orignal OC2 Bios
-
-local init
-do
-  function sleep(timeout)
-    checkArg(1, timeout, "number", "nil")
-    local deadline = computer.uptime() + (timeout or 0)
-    repeat
-      computer.pullSignal(deadline - computer.uptime())
-    until computer.uptime() >= deadline
-  end
-
-  local component_invoke = component.invoke
-  local function _binv(address, method, ...)
-    --do a protected call to the component_invoke function, and return the result
-    local result = table.pack(pcall(component_invoke, address, method, ...))
-    if not result[1] then
-      return nil, result[2]
-    else
-      return table.unpack(result, 2, result.n)
-    end
-  end
-
-    -- backwards compatibility, may remove later
-    local eeprom = component.list("eeprom")()
-    computer.getBootAddress = function()
-      return _binv(eeprom, "getData")
-    end
-    computer.setBootAddress = function(address)
-      return _binv(eeprom, "setData", address)
-    end
-
-  do
-    local screen = component.list("screen")()
-    local gpu = component.list("gpu")()
-    if gpu and screen then
-      _binv(gpu, "bind", screen)
-      _binv(gpu, "setBackground", 0x0000ff)
-      _binv(gpu, "setForeground", 0xffffff)
-      --print the boot message
-      _binv(gpu, "setResolution", 50, 16)
-      _binv(gpu, "fill", 1, 1, 50, 16, " ")
-      _binv(gpu, "set", 1, 2, "    /==/")
-      _binv(gpu, "set", 1, 3 ,"   /--/|  Wedge Microsystems")
-      _binv(gpu, "set", 1, 4, "  /--/ |   WGD-ADV-BIOS")
-      _binv(gpu, "set", 1, 5, " /==/==|")
-      _binv(gpu, "set", 1, 7, "            [#########################]")
-      _binv(gpu, "set", 1, 8, "            [<RAM Capacity : 00512kB >]")
-      _binv(gpu, "set", 1, 9, "            [<Processor    : Bintel6 >]")
-      _binv(gpu, "set", 1, 10,"            [<Architechure : Lua 5.3 >]")
-      _binv(gpu, "set", 1, 11,"            [<BIOS Version : 1.0.0   >]")
-      _binv(gpu, "set", 1, 12,"            [<BIOS Config  : Legacy  >]")
-      _binv(gpu, "set", 1, 13,"            [#########################]")
-      _binv(gpu, "set", 1, 16," Press F2 to enter BIOS setup utiliy ... ")
-      sleep(5)
-    end
-  end 
-
-  --attempt to load init.lua from the boot medium
-  local function tryLoadFrom(address)
-    --invoke the medium, and try to open init.lua
-    local handle, reason = _binv(address, "open", "/init.lua")
-    if not handle then
-      return nil, reason
-    end
-    local buffer = ""
-    repeat
-      local data, reason = _binv(address, "read", handle, math.huge)
-      if not data and reason then
-        return nil, reason
-      end
-      buffer = buffer .. (data or "")
-    until not data
-    _binv(address, "close", handle)
-    return load(buffer, "=init")
-  end
-
-
-  local reason
-  if computer.getBootAddress() then
-    init, reason = tryLoadFrom(computer.getBootAddress())
-  end
-
-  -- if boot medium is not present, try to find another one
-  if not init then
-    computer.setBootAddress()
-    --for every component that is a filesystem, try to load from it
-    for address in component.list("filesystem") do
-      init, reason = tryLoadFrom(address)
-      if init then
-        computer.setBootAddress(address)
-        break
-      end
-    end
-  end
-
-  --boot failure:
-  if not init then
-    error("No bootable medium found" .. (reason and (": " .. tostring(reason)) or ""), 0)
-  end
-  computer.beep(1000, 0.2)
-  
+-- Here will be the un-minified code for the BIOS for OpenComputers
+NULLPTR = "00000000-0000-0000-0000-000000000000"
+--	   11223344 5566 7788 99AA BBCCDDEEFFGG
+constants = {
+	version = "1.0.0", --BIOS version (semver)
+	debugmode =  true, --Enable Debugging Stuff
+	}
+--Misc binary utilitys
+binutils = {
+	---@return table<integer> (table # = 64, integers are bits, lowest index = lsb)
+	bytetobitarray = function (bytes)
+		local temp = {}
+		for i = 0, 63 do
+			temp[i + 1] = ((byte & (1 << i)) >> i)
+		end
+	end,
+	inttobool = function (int) 
+		if int == 0 then
+			return false
+		else
+			return true
+		end
+	end
+}
+---Protected-Call wrapper
+function try(tryMethod, failMethod, causePanic, isGPUInit, outputVars)
+	local attempt = table.pack(pcall(tryMethod))
+	local sucess = attempt[1]
+	if success then
+		return attempt[2]
+	else
+		---#TODO: Finish Wrapper
 end
-return init()
+
+
+
+--Wrapper for EEPROMS for better reading / writing
+eepromutils = {
+	_eepromaddress = "",
+	---@type integer
+	_eepromdatasize = 256, -- default size
+	data = {
+		---@type string
+		_codechksm = ""
+		---@type boolean
+		_initalized = false
+		---@type string
+		_rawdata = ""
+		---@type table<integer>
+		_rawbytes = {}
+		},
+	---@discription load's the eeproms byte array (call only once with eepromutils:load()! )
+	load = function (self)
+		if self.data._initalized then
+			error("eeprom load() called twice Trace: " .. debug.traceback())
+		end
+		if self._eepromaddress == "" or self._eepromaddress == nil then
+			error("eeprom load() called before EEPROM init! Trace: " .. debug.traceback())
+		else	
+			local eepromcmp = component.proxy(self._eepromaddress)
+			self._eepromdatasize = eepromcmp.getDataSize()
+			self.data._rawdata = eepromcmp.getData()
+			self.data._codechksm = eepromcmp.getChecksum()
+			local temp = {}
+			for i = 1, self._eepromdatasize do
+				if self._rawdata:byte(i) == nil then
+					temp[i] = 0
+				else
+					temp[i] = self._rawdata:byte(i)
+				end
+			end
+
+		end
+		self._rawbytes = temp
+		self.data._initalized = true
+	end,
+	--read a byte at the specified address
+	---@param address integer (0x00 to eeprom size) location to read
+	readbyte = function (self, address)
+		if not self.data_initalized then
+			error("readbyte() called without EEPROM init! Trace: " .. debug.traceback())
+		else
+			if (address) > self._eepromdatasize or (address < 0) then
+				error(string.format("readbyte(): Access Violation: 0x%x - Stack: ", address) .. debug.traceback())
+			else
+				return self.data._rawbytes[i - 1]
+			end
+		end
+	end,
+	--write a byte to specified address
+	---@param address integer (0x00 to eeprom size) location to write
+	---@param byte integer (0x00 to 0xFF) byte to write
+	writebyte = function (self, byte, address)
+		if not self.data_initalized then
+			error("writebyte() called without EEPROM init! Trace: " .. debug.traceback())
+		else
+			if (address) > self._eepromdatasize or (address < 0) then
+				error(string.format("writebyte(): Access Violation: 0x%x - Trace: ", address) .. debug.traceback())
+			else
+				if (byte < 0) or (byte > 0xFF) then
+					error(string.format("writebyte(): Write attempt with value larger than uint8: %d - Trace: ", byte) .. debug.traceback())
+				end
+				self.data._rawbytes[i - 1] = byte
+			end
+		end
+	end,
+	--note, all reads & writes are in litte-endian (lowest address = lowest value)
+	readuint16 = function (self, address) 
+		local lsb = self:readbyte(address)
+		local msb = self:readbyte(address + 1)
+		return lsb + (msb << 8)
+	end,
+	readuint32 = function (self, address)
+		local temp = 0
+		for i = 0, 3 do
+			temp = temp + (self:readbytes(address + i) << i*8)
+		end
+		return temp
+	end,
+	readuint64 - function (self, address)
+		local temp = 0
+		for i = 0, 7 do
+			temp = temp + (self:readbytes(address + i) << i*8)
+		end temp
+	end,
+	writeuint16 = function (self, uint16, address)
+		local lsb = uint16 & 0xFF
+		local msb = ((uint16 & 0xFF00) >> 8)
+		self:writebyte(lsb, address)
+		self:writebyte(msb, address + 1)
+	end
+	writeuint32 = function (self, uint32, address)
+		for i = 0, 3 do
+			self:writebyte((uint32 & (0xFF << 8*i) >> 8 * i), address + i)
+		end
+	end
+	writeuint64 = function (self, uint64, address)
+		for i = 0, 7 do
+			self:writebyte((uint64 & (0xFF << 8*i) >> 8 * i), address + i)
+		end
+	end
+}
+---@class
+config = {
+	---@type table<string>
+	bootDevices = {
+		NULLPTR,
+		NULLPTR,
+		NULLPTR,
+		NULLPTR,
+		NULLPTR,
+		NULLPTR,
+	},
+	booleanVars = {
+		      ueifEnabled = false
+		legacyBootEnabled = false
+		secureBootEnabled = false
+		networkBootEnable = false
+	},
+	integerVars = {
+		lastBootTime = 0
+		confighash = 0
+	}
+}
+--Invoke a component with the specified method
+function Boot_Invoke(address, method, ...)
+	result = table.pack(pcall(component.invoke, address, method, ...))
+	if result[1] then
+		return result[2], nil 
+	else
+		return nil, result[2]
+	end
+end
+
+	---@START@---
+eepromutils._eepromaddress  = component.proxy(component.list("eeprom")()).address
+eepromutils:load()
+---@CONFIG LOAD@---
+for i = 0, 5 do
+	local tmp = ""
+	for j = 1, 16 do
+		local byte = eepromutils:readbyte(j + i * 16)
+		if j == 4 or j == 6 or j == 8 or j == 10 then
+			tmp = tmp .. string.format("%x", byte) .. "-"
+		else
+			tmp = tmp .. string.format("%x", byte)
+		end
+		config.bootDevices[i+1] = tmp
+	end
+end
+config.lastBootTime = eepromutils:readuint32(0x60)
+config.confighash   = eepromutils:readuint32(0x64)
+local tmp = {}
+tmp = binutils.bytetobitarray(eepromutils:readbyte(0x68))
+config.ueifEnabled = binutils.inttobool(tmp[1])
+config.legacyBootEnabled = binutils.inttobool(tmp[2])
+config.secureBootEnabled = binutils.inttobool(tmp[3])
+config.networkBootEnabled = binutils.inttobool(tmp[4])
+
+
+
+
+binutils.inttobool()
+
+
+
+Headless = true
+if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
+	---@class
+	local GPUDevice = {
+		---@constructor
+		new = function (self, GPUAddress)
+			self.colorDepth = Boot_Invoke(GPUAddress, "maxDepth")
+			self.DeviceAddress = GPUAddress
+			self.GraphicsCalls.DeviceAddress = GPUAddress
+			return self
+		end,
+		colorDepth = 0,
+		DeviceAddress = NULLPTR,
+		GraphicsCalls = {
+			DeviceAddress = NULLPTR,
+			drawText = function (self, x, y, text) 
+				Boot_Invoke(self.DeviceAddress, "set", x, y, text)
+			end,
+			fillScreen = function (self, x1, y1, x2, y2, character)
+				Boot_Invoke(self.DeviceAddress, "fill", x1, y1, x2, y2, character)
+			end,
+			setForegroundColor = function (self, color)
+				Boot_Invoke(self.DeviceAddress, "setForeground", color)
+			end,
+			setBackgroundColor = function (self, color)
+				Book_Invoke(self.Device Address, "setBackground", color)
+			end,
+			clearScreen = function(self)
+				self:fillScreen(0,0,50,16," ")
+			end
+		}
+	}
+	local GPUAddress = component.proxy(component.list("gpu")()).address
+	local ScreenAddress = component.proxy(component.list("screen")()).address
+	Boot_Invoke(GPUAddress, "bind", ScreenAddress)
+	local mainGPUDevice = GPUDevice:new(GPUAddress)
+	mainGPUDevice:clearScreen()
+	Headless = false
+end
+
+if Headless then
+	goto bootStart
+else
+
+	--Boot Screen
+end
+
