@@ -59,7 +59,7 @@ function try(tryMethod, failMethod, outputIsMuliple, ...)
 				return attempt2
 			end
 		else
-			error("try: failMethod errored: " .. attmept2[2] .. debug.traceback())
+			error("try: failMethod errored: " .. attempt2[2] .. debug.traceback())
 		end
 	end
 end
@@ -91,7 +91,7 @@ eepromutils = {
 			self._eepromdatasize = eepromcmp.getDataSize()
 			self.data._rawdata = eepromcmp.getData()
 			self.data._codechksm = eepromcmp.getChecksum()
-			local temp = {}
+			temp = {}
 			for i = 1, self._eepromdatasize do
 				if self._rawdata:byte(i) == nil then
 					temp[i] = 0
@@ -113,7 +113,7 @@ eepromutils = {
 			if (address) > self._eepromdatasize or (address < 0) then
 				error(string.format("readbyte(): Access Violation: 0x%x - Stack: ", address) .. debug.traceback())
 			else
-				return self.data._rawbytes[i - 1]
+				return self.data._rawbytes[address - 1]
 			end
 		end
 	end,
@@ -131,7 +131,7 @@ eepromutils = {
 					error(string.format("writebyte(): Write attempt with value larger than uint8: %d - Trace: ", byte) ..
 						debug.traceback())
 				end
-				self.data._rawbytes[i - 1] = byte
+				self.data._rawbytes[address - 1] = byte
 			end
 		end
 	end,
@@ -172,7 +172,6 @@ eepromutils = {
 		end
 	end
 }
----@class
 config = {
 	---@type table<string>
 	bootDevices = {
@@ -236,7 +235,6 @@ config.networkBootEnabled = binutils.inttobool(tmp[4])
 Headless                  = true
 
 if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
-	---@class
 	local GPUDevice = {
 		---@constructor
 		new = function(self, GPUAddress)
@@ -259,7 +257,7 @@ if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 				Boot_Invoke(self.DeviceAddress, "setForeground", color, isPallet)
 			end,
 			setBackgroundColor = function(self, color, isPallet)
-				Book_Invoke(self.DeviceAddress, "setBackground", color, isPallet)
+				Boot_Invoke(self.DeviceAddress, "setBackground", color, isPallet)
 			end,
 			clearScreen = function(self)
 				self:fillScreen(0, 0, 50, 16, " ")
@@ -269,7 +267,7 @@ if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 				return xy[1], xy[2]
 			end,
 			setResolution = function(self, x, y)
-				xMax, yMaxs = self:getMaxResolution()
+				xMax, yMax = self:getMaxResolution()
 				if (x > xMax) or (y > yMax) then
 					error("GPUDevice: setResolution exceeds maxResolution: " ..
 						tostring(x) ..
