@@ -1,0 +1,26 @@
+name: Minify Lua
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Lua
+        uses: actions/setup-lua@v0.1.0
+      - name: Install LuaMinify
+        run: |
+          luarocks install luaminify
+      - name: Minify Lua files
+        run: |
+          for file in $(find src -name "*.lua"); do
+            luaminify $file > "${file%.*}.min.lua"
+          done
+      - name: Commit and push minified files
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add .
+          git commit -m "Minify Lua files"
+          git push
