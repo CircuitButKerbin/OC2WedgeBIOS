@@ -1,6 +1,6 @@
 -- Here will be the un-minified code for the BIOS for OpenComputers
+--NULL Component Address Pointer (uint128), 16 bytes
 NULLPTR = "00000000-0000-0000-0000-000000000000"
---	   11223344 5566 7788 99AA BBCCDDEEFFGG
 constants = {
 	version = "1.0.0", --BIOS version (semver)
 	debugmode =  true, --Enable Debugging Stuff
@@ -23,13 +23,41 @@ binutils = {
 	end
 }
 ---Protected-Call wrapper
-function try(tryMethod, failMethod, causePanic, isGPUInit, outputVars)
-	local attempt = table.pack(pcall(tryMethod))
-	local sucess = attempt[1]
-	if success then
-		return attempt[2]
+---@return any|table<any>
+---@param tryMethod function
+---@param failMethod function
+---@param outputIsMuliple boolean
+---failMethod
+--Failmethod recieves (error, ...)
+--... is the args passed to tryMethod
+function try(tryMethod, failMethod, outputIsMuliple, ...)
+	--sanity checks
+	if type(tryMethod) ~= "function" then
+		error("try: invalid type for tryMethod: " .. type(tryMethod) .. "Trace: " .. debug.traceback())
+	end
+	if type(failMethod) ~= "function" then
+		error("try: invalid type for failMethod: " .. type(failMethod) .. "Trace: " .. debug.traceback())
+	end
+
+	local attempt = table.pack(pcall(tryMethod, ...))
+	if attempt[1] then
+		if outputIsMuliple then
+			return table.remove(attempt, 1)
+		else
+			return attempt[2]
+		end
 	else
-		---#TODO: Finish Wrapper
+		attempt2 = table.pack(pcall(failMethod, attempt[2], ...))
+		if attempt2[1] then
+			if outputIsMuliple then 
+				return table.remove(attempt, 1)
+			else
+				return attempt2
+			end
+		else
+			error("try: failMethod errored: " .. attmept2[2] .. debug.traceback())
+		end
+	end
 end
 
 
@@ -41,11 +69,11 @@ eepromutils = {
 	_eepromdatasize = 256, -- default size
 	data = {
 		---@type string
-		_codechksm = ""
+		_codechksm = "",
 		---@type boolean
-		_initalized = false
+		_initalized = false,
 		---@type string
-		_rawdata = ""
+		_rawdata = "",
 		---@type table<integer>
 		_rawbytes = {}
 		},
@@ -149,16 +177,16 @@ config = {
 		NULLPTR,
 		NULLPTR,
 		NULLPTR,
-		NULLPTR,
+		NULLPTR
 	},
 	booleanVars = {
-		      ueifEnabled = false
-		legacyBootEnabled = false
-		secureBootEnabled = false
+		      ueifEnabled = false,
+		legacyBootEnabled = false,
+		secureBootEnabled = false,
 		networkBootEnable = false
 	},
 	integerVars = {
-		lastBootTime = 0
+		lastBootTime = 0,
 		confighash = 0
 	}
 }
@@ -166,7 +194,11 @@ config = {
 function Boot_Invoke(address, method, ...)
 	result = table.pack(pcall(component.invoke, address, method, ...))
 	if result[1] then
-		return result[2], nil 
+		if #table.remove(result, 1) ~= 1 then
+			return result, nil
+		else
+			return result[2], nil 
+		end
 	else
 		return nil, result[2]
 	end
@@ -196,15 +228,8 @@ config.ueifEnabled = binutils.inttobool(tmp[1])
 config.legacyBootEnabled = binutils.inttobool(tmp[2])
 config.secureBootEnabled = binutils.inttobool(tmp[3])
 config.networkBootEnabled = binutils.inttobool(tmp[4])
-
-
-
-
-binutils.inttobool()
-
-
-
 Headless = true
+
 if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 	---@class
 	local GPUDevice = {
@@ -225,29 +250,65 @@ if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 			fillScreen = function (self, x1, y1, x2, y2, character)
 				Boot_Invoke(self.DeviceAddress, "fill", x1, y1, x2, y2, character)
 			end,
-			setForegroundColor = function (self, color)
-				Boot_Invoke(self.DeviceAddress, "setForeground", color)
+			setForegroundColor = function (self, color, isPallet)
+				Boot_Invoke(self.DeviceAddress, "setForeground", color, isPallet)
 			end,
-			setBackgroundColor = function (self, color)
-				Book_Invoke(self.Device Address, "setBackground", color)
+			setBackgroundColor = function (self, color, isPallet)
+				Book_Invoke(self.Device Address, "setBackground", color, isPallet)
 			end,
 			clearScreen = function(self)
 				self:fillScreen(0,0,50,16," ")
+			end,
+			getMaxResolution = function(self)
+				xy = Boot_Invoke(self.DeviceAddress, "maxResolution")
+				return xy[1], xy[2]
+			end,
+			setResolution = function(self, x, y)
+				xMax, yMaxs = self:getMaxResolution()
+				if (x > xMax) or (y > yMax) then
+					error("GPUDevice: setResolution exceeds maxResolution: " .. tostring(x) .. tostring(y) .. "when max is: " .. tostring(xMax) .. tostring(yMax) .. " Trace: " .. debug.traceback()) 
+				else
+					Boot_Invoke(self.DeviceAddress, "setResolution", x, y)
+				end
 			end
-		}
+			}
 	}
 	local GPUAddress = component.proxy(component.list("gpu")()).address
 	local ScreenAddress = component.proxy(component.list("screen")()).address
 	Boot_Invoke(GPUAddress, "bind", ScreenAddress)
 	local mainGPUDevice = GPUDevice:new(GPUAddress)
-	mainGPUDevice:clearScreen()
+	mainGPUDevice.GraphicsCalls:clearScreen()
 	Headless = false
 end
 
 if Headless then
 	goto bootStart
 else
-
-	--Boot Screen
+	local lowColorMode = true
+	mainGPUDevice.GraphicsCalls:setResolution(50, 16)
+	mainGPUDevice.GraphicsCalls:set(1, 1, "[Text mode init]")
+	if mainGPUDevice.colorDepth == 1 then
+		lowColorMode = true
+	else 
+		if mainGPUDevice.colorDepth == 4 then
+			local startX = 34
+			local startY = 15
+			for j = 0, 1
+				for i = 0, 7 do
+					local drawX = startX + (i*2)
+					local drawY = startY + j 
+					mainGPUDevice.GraphicsCalls:setBackgroundColor((i + 1) + (j*8), true)
+					mainGPUDevice.GraphicsCalls:setForegroundColor((i + 1) + (j*8), true)
+					mainGPUDevice.GraphicsCalls:set(drawX, drawY, "##")
+				end
+			end
+			mainGPUDevice.GraphicsCalls:setBackgroundColor(0)
+			mainGPUDevice.GraphicsCalls:setForegroundColor(0xffffff)
+		else
+			if mainGPUDevice.colorDepth == 8 then
+				lowColorMode = false
+			end
+		end
+	end
 end
 
