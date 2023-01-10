@@ -6,8 +6,12 @@ echo Finding Files
 files=$(find src -name "*.lua" ! -name "*.min.js")
 pwd=$(pwd)
 echo Minifying files
-echo $tmp1
-luamin -f $pwd/$files > minified/$files
+for file in $files
+do
+	echo $file
+	cat $file | luamin -c - > minified/$file
+done
+
 echo $?
 echo Done
 exit 0
