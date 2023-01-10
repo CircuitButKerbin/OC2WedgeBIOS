@@ -13,7 +13,9 @@ jobs:
         run: npm install -g luamin
 
       - name: Allow Execution
-        run: chmod +x .github/scripts/minify.sh
+        run: chmod +x .github/scripts/*.sh
+      - name: Debug Stuff
+        run: .github/scripts/debug.sh
       - name: Minify Lua files
         run: .github/scripts/minify.sh
 
