@@ -10,6 +10,7 @@ for file in $files
 do
 	echo $file
 	cat $file | luamin -c - > minified/$file
+	cat minified/$file #Debug
 done
 
 echo $?
