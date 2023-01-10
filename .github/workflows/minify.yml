@@ -15,7 +15,7 @@ jobs:
       - name: Minify Lua files
         run: |
           mkdir -p minified
-          find src -name "*.lua" -exec luamin {} -o minified/{} \;
+          find src -name "*.lua" ! -name "*.min.js" -exec luamin -f {} > minified/{} \;
 
       - name: Artifact minified files
         uses: actions/upload-artifact@v2

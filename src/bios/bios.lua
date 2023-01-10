@@ -8,7 +8,7 @@ constants = {
 --Misc binary utilitys
 binutils = {
 	---@return table<integer> (table # = 64, integers are bits, lowest index = lsb)
-	bytetobitarray = function (bytes)
+	bytetobitarray = function (byte)
 		local temp = {}
 		for i = 0, 63 do
 			temp[i + 1] = ((byte & (1 << i)) >> i)
@@ -149,19 +149,20 @@ eepromutils = {
 		local temp = 0
 		for i = 0, 7 do
 			temp = temp + (self:readbytes(address + i) << i*8)
-		end temp
+		end
+		return temp
 	end,
 	writeuint16 = function (self, uint16, address)
 		local lsb = uint16 & 0xFF
 		local msb = ((uint16 & 0xFF00) >> 8)
 		self:writebyte(lsb, address)
 		self:writebyte(msb, address + 1)
-	end
+	end,
 	writeuint32 = function (self, uint32, address)
 		for i = 0, 3 do
 			self:writebyte((uint32 & (0xFF << 8*i) >> 8 * i), address + i)
 		end
-	end
+	end,
 	writeuint64 = function (self, uint64, address)
 		for i = 0, 7 do
 			self:writebyte((uint64 & (0xFF << 8*i) >> 8 * i), address + i)
@@ -254,7 +255,7 @@ if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 				Boot_Invoke(self.DeviceAddress, "setForeground", color, isPallet)
 			end,
 			setBackgroundColor = function (self, color, isPallet)
-				Book_Invoke(self.Device Address, "setBackground", color, isPallet)
+				Book_Invoke(self.Device, Address, "setBackground", color, isPallet)
 			end,
 			clearScreen = function(self)
 				self:fillScreen(0,0,50,16," ")
@@ -293,7 +294,7 @@ else
 		if mainGPUDevice.colorDepth == 4 then
 			local startX = 34
 			local startY = 15
-			for j = 0, 1
+			for j = 0, 1 do
 				for i = 0, 7 do
 					local drawX = startX + (i*2)
 					local drawY = startY + j 
