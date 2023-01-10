@@ -7,10 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Lua
-        uses: leafo/gh-actions-lua@v1
-      - name: Install LuaRocks
-        uses: leafo/gh-actions-luarocks@v1
+      - uses: leafo/gh-actions-lua@v9
+      - uses: leafo/gh-actions-luarocks@v4
       - name: Install LuaMinify
         run: |
           luarocks install luaminify
