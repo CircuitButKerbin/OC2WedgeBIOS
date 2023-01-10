@@ -7,14 +7,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.8
-      - name: Install Lua and LuaRocks
-        run: |
-          apt-get update
-          apt-get install -y lua5.3 luarocks
+      - name: Set up Lua
+        uses: leafo/gh-actions-lua@v1
+      - name: Install LuaRocks
+        uses: leafo/gh-actions-luarocks@v1
       - name: Install LuaMinify
         run: |
           luarocks install luaminify
