@@ -1,3 +1,4 @@
+---@diagnostic disable: lowercase-global
 -- Here will be the un-minified code for the BIOS for OpenComputers
 --NULL Component Address Pointer (uint128), 16 bytes
 NULLPTR = "00000000-0000-0000-0000-000000000000"
@@ -5,6 +6,8 @@ constants = {
 	version = "1.0.0", --BIOS version (semver)
 	debugmode = true, --Enable Debugging Stuff
 }
+---TODO: component wrapper possibily?
+component = {}
 --Misc binary utilitys
 binutils = {
 	---@return table<integer> (table # = 64, integers are bits, lowest index = lsb)
@@ -13,6 +16,7 @@ binutils = {
 		for i = 0, 63 do
 			temp[i + 1] = ((byte & (1 << i)) >> i)
 		end
+		return temp
 	end,
 	inttobool = function(int)
 		if int == 0 then
@@ -144,7 +148,7 @@ eepromutils = {
 		end
 		return temp
 	end,
-	readuint64 - function(self, address)
+	readuint64 = function(self, address)
 		local temp = 0
 		for i = 0, 7 do
 			temp = temp + (self:readbytes(address + i) << i * 8)
@@ -180,7 +184,8 @@ config = {
 		NULLPTR
 	},
 	booleanVars = {
-		ueifEnabled = false,
+		uefiBootEnabled = false,
+		unmanagedUefi = false,
 		legacyBootEnabled = false,
 		secureBootEnabled = false,
 		networkBootEnable = false
@@ -224,7 +229,7 @@ config.lastBootTime       = eepromutils:readuint32(0x60)
 config.confighash         = eepromutils:readuint32(0x64)
 local tmp                 = {}
 tmp                       = binutils.bytetobitarray(eepromutils:readbyte(0x68))
-config.ueifEnabled        = binutils.inttobool(tmp[1])
+config.uefiBootEnabled        = binutils.inttobool(tmp[1])
 config.legacyBootEnabled  = binutils.inttobool(tmp[2])
 config.secureBootEnabled  = binutils.inttobool(tmp[3])
 config.networkBootEnabled = binutils.inttobool(tmp[4])
@@ -254,7 +259,7 @@ if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 				Boot_Invoke(self.DeviceAddress, "setForeground", color, isPallet)
 			end,
 			setBackgroundColor = function(self, color, isPallet)
-				Book_Invoke(self.Device, Address, "setBackground", color, isPallet)
+				Book_Invoke(self.DeviceAddress, "setBackground", color, isPallet)
 			end,
 			clearScreen = function(self)
 				self:fillScreen(0, 0, 50, 16, " ")
@@ -278,7 +283,7 @@ if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 	local GPUAddress = component.proxy(component.list("gpu")()).address
 	local ScreenAddress = component.proxy(component.list("screen")()).address
 	Boot_Invoke(GPUAddress, "bind", ScreenAddress)
-	local mainGPUDevice = GPUDevice:new(GPUAddress)
+	mainGPUDevice = GPUDevice:new(GPUAddress)
 	mainGPUDevice.GraphicsCalls:clearScreen()
 	Headless = false
 end
@@ -310,6 +315,56 @@ else
 			if mainGPUDevice.colorDepth == 8 then
 				lowColorMode = false
 			end
+		end
+	end
+end
+
+::bootStart::
+local bootMode = "legacy"
+if config.uefiBootEnabled and not config.legacyBootEnabled then
+	bootMode = "uefi"
+	if config.unmanagedUefi then
+		bootMode = "uefi_unmanaged"
+	end
+end
+
+for i = 1, #config.bootDevices do
+	if (config.bootDevices[i] ~= NULLPTR) and (config.bootDevices[i] ~= nil) then
+		local componentType = component.list()[config.bootDevices[i]] -- This should return the component's type
+		if (bootMode == "uefi") and (componentType == "filesystem") then
+			local bootMedium = component.proxy(config.bootDevices[i])
+			--TODO: implement this
+		end
+		if (bootMode == "uefi_unmanaged") and (componentType == "drive") then
+			local bootMedium = component.proxy(config.bootDevices[i])
+			--TODO: Proper unmanagedDrive wrapper for whatever filesystems we support
+		end
+		if (bootMode == "legacy") and (componentType == "filesystem") then
+			local bootMedium = component.proxy(config.bootDeivces[i])
+			if bootMedium.exists("/boot/init.lua") then
+				init = bootMedium.open("/boot/init.lua")
+			else if bootMedium.exists("/init.lua") then
+				init = bootMedium.open("/init.lua")
+			end
+			if init ~= nil then
+				bootCode = bootMedium.read(init)
+			end
+			end
+		end
+	end
+end
+
+if bootCode ~= nil then
+	return bootCode()
+else
+	if Headless then
+		error("No bootable medium found... Trace: " .. debug.traceback())
+	else
+		mainGPUDevice.GraphicsCalls:clearScreen()
+		mainGPUDevice.GraphicsCalls:set(1,1,"No bootable medium found...")
+		while true do
+			--#TODO: Add proper sleep method here
+			computer.pullSignal(1)
 		end
 	end
 end
