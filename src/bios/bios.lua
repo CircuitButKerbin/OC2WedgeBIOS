@@ -3,18 +3,18 @@
 NULLPTR = "00000000-0000-0000-0000-000000000000"
 constants = {
 	version = "1.0.0", --BIOS version (semver)
-	debugmode =  true, --Enable Debugging Stuff
-	}
+	debugmode = true, --Enable Debugging Stuff
+}
 --Misc binary utilitys
 binutils = {
 	---@return table<integer> (table # = 64, integers are bits, lowest index = lsb)
-	bytetobitarray = function (byte)
+	bytetobitarray = function(byte)
 		local temp = {}
 		for i = 0, 63 do
 			temp[i + 1] = ((byte & (1 << i)) >> i)
 		end
 	end,
-	inttobool = function (int) 
+	inttobool = function(int)
 		if int == 0 then
 			return false
 		else
@@ -49,7 +49,7 @@ function try(tryMethod, failMethod, outputIsMuliple, ...)
 	else
 		attempt2 = table.pack(pcall(failMethod, attempt[2], ...))
 		if attempt2[1] then
-			if outputIsMuliple then 
+			if outputIsMuliple then
 				return table.remove(attempt, 1)
 			else
 				return attempt2
@@ -59,8 +59,6 @@ function try(tryMethod, failMethod, outputIsMuliple, ...)
 		end
 	end
 end
-
-
 
 --Wrapper for EEPROMS for better reading / writing
 eepromutils = {
@@ -76,15 +74,15 @@ eepromutils = {
 		_rawdata = "",
 		---@type table<integer>
 		_rawbytes = {}
-		},
+	},
 	---@discription load's the eeproms byte array (call only once with eepromutils:load()! )
-	load = function (self)
+	load = function(self)
 		if self.data._initalized then
 			error("eeprom load() called twice Trace: " .. debug.traceback())
 		end
 		if self._eepromaddress == "" or self._eepromaddress == nil then
 			error("eeprom load() called before EEPROM init! Trace: " .. debug.traceback())
-		else	
+		else
 			local eepromcmp = component.proxy(self._eepromaddress)
 			self._eepromdatasize = eepromcmp.getDataSize()
 			self.data._rawdata = eepromcmp.getData()
@@ -104,7 +102,7 @@ eepromutils = {
 	end,
 	--read a byte at the specified address
 	---@param address integer (0x00 to eeprom size) location to read
-	readbyte = function (self, address)
+	readbyte = function(self, address)
 		if not self.data_initalized then
 			error("readbyte() called without EEPROM init! Trace: " .. debug.traceback())
 		else
@@ -118,7 +116,7 @@ eepromutils = {
 	--write a byte to specified address
 	---@param address integer (0x00 to eeprom size) location to write
 	---@param byte integer (0x00 to 0xFF) byte to write
-	writebyte = function (self, byte, address)
+	writebyte = function(self, byte, address)
 		if not self.data_initalized then
 			error("writebyte() called without EEPROM init! Trace: " .. debug.traceback())
 		else
@@ -126,46 +124,47 @@ eepromutils = {
 				error(string.format("writebyte(): Access Violation: 0x%x - Trace: ", address) .. debug.traceback())
 			else
 				if (byte < 0) or (byte > 0xFF) then
-					error(string.format("writebyte(): Write attempt with value larger than uint8: %d - Trace: ", byte) .. debug.traceback())
+					error(string.format("writebyte(): Write attempt with value larger than uint8: %d - Trace: ", byte) ..
+						debug.traceback())
 				end
 				self.data._rawbytes[i - 1] = byte
 			end
 		end
 	end,
 	--note, all reads & writes are in litte-endian (lowest address = lowest value)
-	readuint16 = function (self, address) 
+	readuint16 = function(self, address)
 		local lsb = self:readbyte(address)
 		local msb = self:readbyte(address + 1)
 		return lsb + (msb << 8)
 	end,
-	readuint32 = function (self, address)
+	readuint32 = function(self, address)
 		local temp = 0
 		for i = 0, 3 do
-			temp = temp + (self:readbytes(address + i) << i*8)
+			temp = temp + (self:readbytes(address + i) << i * 8)
 		end
 		return temp
 	end,
-	readuint64 - function (self, address)
+	readuint64 - function(self, address)
 		local temp = 0
 		for i = 0, 7 do
-			temp = temp + (self:readbytes(address + i) << i*8)
+			temp = temp + (self:readbytes(address + i) << i * 8)
 		end
 		return temp
 	end,
-	writeuint16 = function (self, uint16, address)
+	writeuint16 = function(self, uint16, address)
 		local lsb = uint16 & 0xFF
 		local msb = ((uint16 & 0xFF00) >> 8)
 		self:writebyte(lsb, address)
 		self:writebyte(msb, address + 1)
 	end,
-	writeuint32 = function (self, uint32, address)
+	writeuint32 = function(self, uint32, address)
 		for i = 0, 3 do
-			self:writebyte((uint32 & (0xFF << 8*i) >> 8 * i), address + i)
+			self:writebyte((uint32 & (0xFF << 8 * i) >> 8 * i), address + i)
 		end
 	end,
-	writeuint64 = function (self, uint64, address)
+	writeuint64 = function(self, uint64, address)
 		for i = 0, 7 do
-			self:writebyte((uint64 & (0xFF << 8*i) >> 8 * i), address + i)
+			self:writebyte((uint64 & (0xFF << 8 * i) >> 8 * i), address + i)
 		end
 	end
 }
@@ -181,7 +180,7 @@ config = {
 		NULLPTR
 	},
 	booleanVars = {
-		      ueifEnabled = false,
+		ueifEnabled = false,
 		legacyBootEnabled = false,
 		secureBootEnabled = false,
 		networkBootEnable = false
@@ -198,15 +197,15 @@ function Boot_Invoke(address, method, ...)
 		if #table.remove(result, 1) ~= 1 then
 			return result, nil
 		else
-			return result[2], nil 
+			return result[2], nil
 		end
 	else
 		return nil, result[2]
 	end
 end
 
-	---@START@---
-eepromutils._eepromaddress  = component.proxy(component.list("eeprom")()).address
+---@START@---
+eepromutils._eepromaddress = component.proxy(component.list("eeprom")()).address
 eepromutils:load()
 ---@CONFIG LOAD@---
 for i = 0, 5 do
@@ -218,24 +217,24 @@ for i = 0, 5 do
 		else
 			tmp = tmp .. string.format("%x", byte)
 		end
-		config.bootDevices[i+1] = tmp
+		config.bootDevices[i + 1] = tmp
 	end
 end
-config.lastBootTime = eepromutils:readuint32(0x60)
-config.confighash   = eepromutils:readuint32(0x64)
-local tmp = {}
-tmp = binutils.bytetobitarray(eepromutils:readbyte(0x68))
-config.ueifEnabled = binutils.inttobool(tmp[1])
-config.legacyBootEnabled = binutils.inttobool(tmp[2])
-config.secureBootEnabled = binutils.inttobool(tmp[3])
+config.lastBootTime       = eepromutils:readuint32(0x60)
+config.confighash         = eepromutils:readuint32(0x64)
+local tmp                 = {}
+tmp                       = binutils.bytetobitarray(eepromutils:readbyte(0x68))
+config.ueifEnabled        = binutils.inttobool(tmp[1])
+config.legacyBootEnabled  = binutils.inttobool(tmp[2])
+config.secureBootEnabled  = binutils.inttobool(tmp[3])
 config.networkBootEnabled = binutils.inttobool(tmp[4])
-Headless = true
+Headless                  = true
 
 if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 	---@class
 	local GPUDevice = {
 		---@constructor
-		new = function (self, GPUAddress)
+		new = function(self, GPUAddress)
 			self.colorDepth = Boot_Invoke(GPUAddress, "maxDepth")
 			self.DeviceAddress = GPUAddress
 			self.GraphicsCalls.DeviceAddress = GPUAddress
@@ -245,20 +244,20 @@ if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 		DeviceAddress = NULLPTR,
 		GraphicsCalls = {
 			DeviceAddress = NULLPTR,
-			drawText = function (self, x, y, text) 
+			drawText = function(self, x, y, text)
 				Boot_Invoke(self.DeviceAddress, "set", x, y, text)
 			end,
-			fillScreen = function (self, x1, y1, x2, y2, character)
+			fillScreen = function(self, x1, y1, x2, y2, character)
 				Boot_Invoke(self.DeviceAddress, "fill", x1, y1, x2, y2, character)
 			end,
-			setForegroundColor = function (self, color, isPallet)
+			setForegroundColor = function(self, color, isPallet)
 				Boot_Invoke(self.DeviceAddress, "setForeground", color, isPallet)
 			end,
-			setBackgroundColor = function (self, color, isPallet)
+			setBackgroundColor = function(self, color, isPallet)
 				Book_Invoke(self.Device, Address, "setBackground", color, isPallet)
 			end,
 			clearScreen = function(self)
-				self:fillScreen(0,0,50,16," ")
+				self:fillScreen(0, 0, 50, 16, " ")
 			end,
 			getMaxResolution = function(self)
 				xy = Boot_Invoke(self.DeviceAddress, "maxResolution")
@@ -267,12 +266,14 @@ if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 			setResolution = function(self, x, y)
 				xMax, yMaxs = self:getMaxResolution()
 				if (x > xMax) or (y > yMax) then
-					error("GPUDevice: setResolution exceeds maxResolution: " .. tostring(x) .. tostring(y) .. "when max is: " .. tostring(xMax) .. tostring(yMax) .. " Trace: " .. debug.traceback()) 
+					error("GPUDevice: setResolution exceeds maxResolution: " ..
+						tostring(x) ..
+						tostring(y) .. "when max is: " .. tostring(xMax) .. tostring(yMax) .. " Trace: " .. debug.traceback())
 				else
 					Boot_Invoke(self.DeviceAddress, "setResolution", x, y)
 				end
 			end
-			}
+		}
 	}
 	local GPUAddress = component.proxy(component.list("gpu")()).address
 	local ScreenAddress = component.proxy(component.list("screen")()).address
@@ -290,16 +291,16 @@ else
 	mainGPUDevice.GraphicsCalls:set(1, 1, "[Text mode init]")
 	if mainGPUDevice.colorDepth == 1 then
 		lowColorMode = true
-	else 
+	else
 		if mainGPUDevice.colorDepth == 4 then
 			local startX = 34
 			local startY = 15
 			for j = 0, 1 do
 				for i = 0, 7 do
-					local drawX = startX + (i*2)
-					local drawY = startY + j 
-					mainGPUDevice.GraphicsCalls:setBackgroundColor((i + 1) + (j*8), true)
-					mainGPUDevice.GraphicsCalls:setForegroundColor((i + 1) + (j*8), true)
+					local drawX = startX + (i * 2)
+					local drawY = startY + j
+					mainGPUDevice.GraphicsCalls:setBackgroundColor((i + 1) + (j * 8), true)
+					mainGPUDevice.GraphicsCalls:setForegroundColor((i + 1) + (j * 8), true)
 					mainGPUDevice.GraphicsCalls:set(drawX, drawY, "##")
 				end
 			end
@@ -312,4 +313,3 @@ else
 		end
 	end
 end
-
