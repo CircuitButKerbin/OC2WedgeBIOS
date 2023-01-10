@@ -6,23 +6,19 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: leafo/gh-actions-lua@v9
-        with:
-          lua-version: 5.3
-      - uses: leafo/gh-actions-luarocks@v4
-      - name: Install LuaMinify
-        run: |
-          luarocks install luaminify
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install luamin
+        run: npm install -g luamin
+
       - name: Minify Lua files
         run: |
-          for file in $(find src -name "*.lua" -and -not -name "*.min.lua"); do
-            luaminify $file > "${file%.*}.min.lua"
-          done
-      - name: Commit and push minified files
-        run: |
-          git config --local user.email "actions@github.com"
-          git config --local user.name "GitHub Actions"
-          git add .
-          git commit -m "Minify Lua files"
-          git push
+          mkdir -p minified
+          find src -name "*.lua" -exec luamin {} -o minified/{} \;
+
+      - name: Artifact minified files
+        uses: actions/upload-artifact@v2
+        with:
+          name: minified-lua
+          path: minified
