@@ -7,14 +7,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Set up Lua
-        uses: actions/setup-lua@v0.1.0
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.8
+      - name: Install Lua and LuaRocks
+        run: |
+          apt-get update
+          apt-get install -y lua5.3 luarocks
       - name: Install LuaMinify
         run: |
           luarocks install luaminify
       - name: Minify Lua files
         run: |
-          for file in $(find src -name "*.lua"); do
+          for file in $(find src -name "*.lua" -and -not -name "*.min.lua"); do
             luaminify $file > "${file%.*}.min.lua"
           done
       - name: Commit and push minified files
