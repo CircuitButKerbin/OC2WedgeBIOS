@@ -213,8 +213,8 @@ config = {
 function Boot_Invoke(address, method, ...)
 	result = table.pack(pcall(component.invoke, address, method, ...))
 	if result[1] then
-		error(type(table.remove(result, 1))) --DEBUG
-		if #table.remove(result, 1) ~= 1 then
+		table.remove(result, 1)
+		if #result ~= 1 then
 			return result, nil
 		else
 			return result[2], nil
