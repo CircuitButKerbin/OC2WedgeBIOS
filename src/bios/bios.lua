@@ -276,7 +276,7 @@ if (component.list("gpu")() ~= nil) and (component.list("screen") ~= nil) then
 				Boot_Invoke(self.DeviceAddress, "setBackground", color, isPallet)
 			end,
 			clearScreen = function(self)
-				self:fillScreen(0, 0, 50, 16, " ")
+				self:fillScreen(1, 1, 50, 16, " ")
 			end,
 			getMaxResolution = function(self)
 				xy = Boot_Invoke(self.DeviceAddress, "maxResolution")
