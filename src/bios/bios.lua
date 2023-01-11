@@ -224,6 +224,13 @@ function Boot_Invoke(address, method, ...)
 	end
 end
 
+function sleep(timeout)
+    deadline = computer.uptime() + (timeout or 0)
+    repeat
+        computer.pullSignal(deadline - computer.uptime())
+    until computer.uptime() >= deadline
+end
+
 ---@START@---
 eepromutils._eepromaddress = table.pack(component.list("eeprom")())[1]
 eepromutils:load()
@@ -331,7 +338,22 @@ else
 			end
 		end
 	end
+	mainGPUDevice.GraphicsCalls:clearScreen()
+	mainGPUDevice.GraphicsCalls:drawText(1,1, "Wedge Microsystems")
+	mainGPUDevice.GraphicsCalls:drawText(1,2, "System Memory: " .. (computer.totalmemory // 1020) .. "kB")
+	mainGPUDevice.GraphicsCalls:drawText(1,15,"Press F2 to enter bios setup...")
+	if (computer.pullSignal(3, "key_down") == "f2") then
+		mainGPUDevice.GraphicsCalls:clearScreen()
+		--Menu Stuff
+	end
+	goto bootStart
 end
+
+
+
+
+
+
 
 ::bootStart::
 local bootMode = "legacy"
