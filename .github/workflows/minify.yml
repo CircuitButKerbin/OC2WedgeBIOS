@@ -38,6 +38,7 @@ jobs:
       - name: Deploy to server
         run: |
           scp -i $SSH_KEY_PATH -r minified/* $SSH_USER@$SSH_HOST:$SSH_PATH/minified/
+          scp -i $SSH_KEY_PATH -r src/* $SSH_USER@$SSH_HOST:$SSH_PATH/unminified/src/
         shell: bash
         env:
           SSH_USER: ${{secrets.SSH_USER}}
