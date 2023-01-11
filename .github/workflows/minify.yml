@@ -37,7 +37,7 @@ jobs:
           SSH_KEY_PATH: ${{ github.workspace }}/../private.key
       - name: Deploy to server
         run: |
-          scp -i $SSH_KEY_PATH -r minified/* $SSH_USER@$SSH_HOST:$SSH_PATH
+          scp -i $SSH_KEY_PATH -r minified/* $SSH_USER@$SSH_HOST:$SSH_PATH/minified/
         shell: bash
         env:
           SSH_USER: ${{secrets.SSH_USER}}
