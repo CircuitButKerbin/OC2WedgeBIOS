@@ -122,6 +122,10 @@ eepromutils = {
 				if (address + 1) > self._eepromdatasize then
 					error(string.format("readbyte(): Access Violation: 0x%x - Stack: ", (address + 1)) .. debug.traceback())
 				end
+				if byte == nil then 
+					error("readbyte(): Segfault: nil Byte - Stack: " .. debug.traceback())
+				end
+				return byte
 			end
 		end
 	end,
