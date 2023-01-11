@@ -110,7 +110,7 @@ eepromutils = {
 	--read a byte at the specified address
 	---@param address integer (0x00 to eeprom size) location to read
 	readbyte = function(self, address)
-		if not self.data_initalized then
+		if not self.data._initalized then
 			error("readbyte() called without EEPROM init! Trace: " .. debug.traceback())
 		else
 			if (address) > self._eepromdatasize or (address < 0) then
@@ -124,7 +124,7 @@ eepromutils = {
 	---@param address integer (0x00 to eeprom size) location to write
 	---@param byte integer (0x00 to 0xFF) byte to write
 	writebyte = function(self, byte, address)
-		if not self.data_initalized then
+		if not self.data._initalized then
 			error("writebyte() called without EEPROM init! Trace: " .. debug.traceback())
 		else
 			if (address) > self._eepromdatasize or (address < 0) then
