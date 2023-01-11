@@ -143,6 +143,9 @@ eepromutils = {
 					error(string.format("writebyte(): Write attempt with value larger than uint8: %d - Trace: ", byte) ..
 						debug.traceback())
 				end
+				if byte == nil then
+					error("writebyte(): Segfault: nil Byte - Trace: " .. debug.traceback())
+				end
 				self.data._rawbytes[address + 1] = byte
 			end
 		end
