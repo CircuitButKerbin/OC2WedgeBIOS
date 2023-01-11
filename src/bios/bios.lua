@@ -307,7 +307,7 @@ if Headless then
 else
 	local lowColorMode = true
 	mainGPUDevice.GraphicsCalls:setResolution(50, 16)
-	mainGPUDevice.GraphicsCalls:set(1, 1, "[Text mode init]")
+	mainGPUDevice.GraphicsCalls:drawText(1, 1, "[Text mode init]")
 	if mainGPUDevice.colorDepth == 1 then
 		lowColorMode = true
 	else
@@ -320,7 +320,7 @@ else
 					local drawY = startY + j
 					mainGPUDevice.GraphicsCalls:setBackgroundColor((i + 1) + (j * 8), true)
 					mainGPUDevice.GraphicsCalls:setForegroundColor((i + 1) + (j * 8), true)
-					mainGPUDevice.GraphicsCalls:set(drawX, drawY, "##")
+					mainGPUDevice.GraphicsCalls:drawText(drawX, drawY, "##")
 				end
 			end
 			mainGPUDevice.GraphicsCalls:setBackgroundColor(0)
@@ -375,7 +375,7 @@ else
 		error("No bootable medium found... Trace: " .. debug.traceback())
 	else
 		mainGPUDevice.GraphicsCalls:clearScreen()
-		mainGPUDevice.GraphicsCalls:set(1,1,"No bootable medium found...")
+		mainGPUDevice.GraphicsCalls:drawText(1,1,"No bootable medium found...")
 		while true do
 			--#TODO: Add proper sleep method here
 			computer.pullSignal(1)
