@@ -96,15 +96,15 @@ eepromutils = {
 			self.data._codechksm = eepromcmp.getChecksum()
 			temp = {}
 			for i = 1, self._eepromdatasize do
-				if self._rawdata:byte(i) == nil then
+				if self.data._rawdata:byte(i) == nil then
 					temp[i] = 0
 				else
-					temp[i] = self._rawdata:byte(i)
+					temp[i] = self.data._rawdata:byte(i)
 				end
 			end
 
 		end
-		self._rawbytes = temp
+		self.data._rawbytes = temp
 		self.data._initalized = true
 	end,
 	--read a byte at the specified address
