@@ -7,7 +7,7 @@ constants = {
 	debugmode = true, --Enable Debugging Stuff
 }
 ---TODO: component wrapper possibily?
-component = {}
+-- component = {}
 --Misc binary utilitys
 binutils = {
 	---@return table<integer> (table # = 64, integers are bits, lowest index = lsb)
