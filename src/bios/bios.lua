@@ -102,10 +102,9 @@ eepromutils = {
 					temp[i] = self.data._rawdata:byte(i)
 				end
 			end
-
+			self.data._rawbytes = temp
+			self.data._initalized = true
 		end
-		self.data._rawbytes = temp
-		self.data._initalized = true
 	end,
 	--read a byte at the specified address
 	---@param address integer (0x00 to eeprom size) location to read
@@ -116,7 +115,13 @@ eepromutils = {
 			if (address) > self._eepromdatasize or (address < 0) then
 				error(string.format("readbyte(): Access Violation: 0x%x - Stack: ", address) .. debug.traceback())
 			else
-				return self.data._rawbytes[address - 1]
+				if address == nil then
+					error("readbyte(): Access Violation: nil Address - Stack: " .. debug.traceback())
+				end
+				local byte = self.data._rawbytes[address + 1]
+				if (address + 1) > self._eepromdatasize then
+					error(string.format("readbyte(): Access Violation: 0x%x - Stack: ", (address + 1)) .. debug.traceback())
+				end
 			end
 		end
 	end,
@@ -134,7 +139,7 @@ eepromutils = {
 					error(string.format("writebyte(): Write attempt with value larger than uint8: %d - Trace: ", byte) ..
 						debug.traceback())
 				end
-				self.data._rawbytes[address - 1] = byte
+				self.data._rawbytes[address + 1] = byte
 			end
 		end
 	end,
