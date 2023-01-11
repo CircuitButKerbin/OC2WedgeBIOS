@@ -159,14 +159,14 @@ eepromutils = {
 	readuint32 = function(self, address)
 		local temp = 0
 		for i = 0, 3 do
-			temp = temp + (self:readbytes(address + i) << i * 8)
+			temp = temp + (self:readbyte(address + i) << i * 8)
 		end
 		return temp
 	end,
 	readuint64 = function(self, address)
 		local temp = 0
 		for i = 0, 7 do
-			temp = temp + (self:readbytes(address + i) << i * 8)
+			temp = temp + (self:readbyte(address + i) << i * 8)
 		end
 		return temp
 	end,
