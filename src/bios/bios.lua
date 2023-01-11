@@ -87,6 +87,9 @@ eepromutils = {
 		if self._eepromaddress == "" or self._eepromaddress == nil then
 			error("eeprom load() called before EEPROM init! Trace: " .. debug.traceback())
 		else
+			if (self._eepromaddress == nil) or (self._eepromaddress == NULLPTR) or (self._eepromaddress == "") then
+				error("eeprom:load() - Uninitalized Address! Trace: " .. debug.traceback())
+			end
 			local eepromcmp = component.proxy(self._eepromaddress)
 			self._eepromdatasize = eepromcmp.getDataSize()
 			self.data._rawdata = eepromcmp.getData()
@@ -209,7 +212,7 @@ function Boot_Invoke(address, method, ...)
 end
 
 ---@START@---
-eepromutils._eepromaddress = component.proxy(component.list("eeprom")()).address
+eepromutils._eepromaddress = table.pack(component.list("eeprom")())[1]
 eepromutils:load()
 ---@CONFIG LOAD@---
 for i = 0, 5 do
